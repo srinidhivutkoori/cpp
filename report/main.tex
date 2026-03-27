@@ -1,0 +1,313 @@
+\documentclass[conference]{IEEEtran}
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{url}
+\usepackage{hyperref}
+
+\lstset{
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{blue},
+  commentstyle=\color{gray},
+  stringstyle=\color{red},
+  breaklines=true,
+  frame=single,
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  tabsize=2
+}
+
+\begin{document}
+
+\title{Academic Conference Paper Submission System: A Cloud-Native Application Using AWS Services}
+
+\author{\IEEEauthorblockN{Srinidhi Vutkoori}
+\IEEEauthorblockA{Student ID: X25173243 \\
+MSc in Cloud Computing \\
+National College of Ireland \\
+Dublin, Ireland \\
+x25173243@student.ncirl.ie}}
+
+\maketitle
+
+\begin{abstract}
+This paper presents the design, implementation, and evaluation of a cloud-native Academic Conference Paper Submission System built using modern web technologies and Amazon Web Services. The management of academic conference submissions has grown increasingly complex as research output expands globally, yet many conferences still rely on fragmented manual processes for paper collection, reviewer assignment, and decision communication. The system presented herein addresses these shortcomings by providing a comprehensive platform that facilitates the complete lifecycle of academic paper management, encompassing conference creation with configurable deadlines and tracks, paper submission with PDF upload and automated metadata validation, peer review assignment driven by expertise matching algorithms, natural language processing analysis of abstracts for automated keyword extraction, and decision notification workflows with templated email delivery. The system architecture employs a three-tier design with a React single-page application frontend, a Flask RESTful backend, and six distinct AWS services including DynamoDB for NoSQL data persistence, S3 for durable file storage, SES for transactional email notifications, Comprehend for NLP analysis, CloudFront for global content delivery, and Lambda for asynchronous serverless processing. A custom Python library named PaperFlow was developed to encapsulate domain logic including paper metadata validation, reviewer expertise matching via Jaccard similarity, submission workflow management through a finite state machine, conference lifecycle tracking, and review score aggregation with statistical analysis. The implementation demonstrates effective use of cloud platform programming principles with a dual-mode architecture that enables complete local development without AWS credentials through mock service implementations. Testing encompasses over sixty unit tests across the backend routes and library modules, and continuous integration is achieved through a three-stage GitHub Actions pipeline. This report details the architectural decisions, cloud service integration strategies, custom library design rationale, and lessons learned during the development of this cloud-native application.
+\end{abstract}
+
+\section{Introduction}
+
+The management of academic conference paper submissions has become increasingly complex as the volume of research output grows worldwide. According to recent bibliometric studies, the number of academic publications has been doubling approximately every twelve years, placing enormous strain on the peer review infrastructure that underpins scientific quality assurance \cite{bornmann2015growth}. Conference organizers must coordinate submission deadlines across multiple tracks, assign qualified reviewers to papers based on expertise matching, collect and aggregate review scores across multiple evaluation dimensions, and communicate decisions to authors in a timely manner. Traditional approaches using email threads, shared spreadsheets, and manual record-keeping are error-prone, do not scale effectively when conferences receive hundreds or thousands of submissions, and provide no automated mechanisms for detecting reviewer conflicts of interest or optimizing reviewer-paper assignments.
+
+Existing conference management systems such as EasyChair and HotCRP have addressed many of these challenges but operate as centralized hosted platforms with limited customization options and no exposure of their underlying cloud architecture for educational purposes \cite{fowler2018}. There exists a clear need for purpose-built software systems that demonstrate how modern cloud services can be composed to automate academic workflows while maintaining clean software architecture, comprehensive testability, and deployment flexibility.
+
+This project addresses these challenges by developing a cloud-native Academic Conference Paper Submission System that integrates six Amazon Web Services to provide a comprehensive solution for the complete paper management lifecycle. The primary motivation is twofold. First, the project aims to demonstrate proficiency in cloud platform programming by building a system that meaningfully utilizes multiple cloud services, where each service fulfills a distinct architectural role that would be difficult or impractical to replicate without cloud infrastructure. Second, the project seeks to establish sound software engineering practices including separation of concerns, design pattern application, comprehensive automated testing, and continuous integration that together produce a maintainable and extensible codebase.
+
+The objectives of this project are fourfold. First, to design and implement a three-tier web application using React for the frontend and Flask for the backend that provides full CRUD operations on four core entities: conferences, papers, reviews, and authors. Second, to integrate six AWS services that each serve a distinct purpose in the application architecture, namely DynamoDB for persistence, S3 for file storage, SES for email, Comprehend for NLP, CloudFront for content delivery, and Lambda for serverless compute. Third, to develop a reusable Python library called PaperFlow that encapsulates the domain logic of academic paper management using object-oriented programming principles with five distinct classes. Fourth, to establish a continuous integration and deployment pipeline using GitHub Actions that automates testing across three stages and ensures code quality throughout the development lifecycle.
+
+The remainder of this paper is organized as follows. Section II describes the project specification and requirements derived from the academic conference domain. Section III presents the system architecture and design decisions including the application factory pattern and dual-mode service abstraction. Section IV details the PaperFlow custom library with its five classes and their algorithms. Section V provides a critical analysis of each of the six AWS cloud services. Section VI covers implementation details with code examples. Section VII discusses the CI/CD pipeline configuration. Section VIII concludes with findings, limitations, and directions for future work.
+
+\section{Project Specification and Requirements}
+
+The Academic Conference Paper Submission System was specified to address the needs of three primary user roles that participate in the academic conference workflow: conference organizers who create and manage conferences, paper authors who submit manuscripts and track their status, and peer reviewers who evaluate submissions and provide structured feedback. The requirements were derived from analysis of existing conference management workflows and identification of pain points that cloud services could address.
+
+The functional requirements encompass full create, read, update, and delete operations on all four core entities. The conference entity stores a comprehensive set of attributes including name, acronym, description, location, multiple deadline dates for submission, review, notification, and camera-ready stages, configurable tracks that categorize paper topics, a list of relevant topics for the conference scope, and a submission capacity limit that constrains the total number of accepted papers. Each of these attributes must be independently updatable through the API, and the system must enforce referential integrity between conferences and their associated papers.
+
+The paper entity captures the complete metadata required for academic manuscript management, including title, abstract, author-provided keywords, track assignment within the parent conference, file reference pointing to the uploaded PDF in object storage, NLP analysis results generated by the Comprehend service, and a workflow status field that tracks the paper through its lifecycle from draft through submission, review, and final decision. The review entity records the reviewer identity, scores across five evaluation dimensions including originality, significance, clarity, methodology, and overall impression rated on a one-to-ten scale, textual feedback providing qualitative assessment, and a recommendation field that captures the reviewer's accept or reject preference. The author entity maintains personal details such as name and email, institutional affiliation, expertise areas represented as keyword lists, and publication metrics including h-index and total publications that support reviewer qualification assessment.
+
+Non-functional requirements include the ability to run entirely in mock mode without AWS credentials for local development and demonstration, a responsive web interface that adapts to different screen sizes, RESTful API design with proper HTTP status codes and consistent JSON response formatting, comprehensive error handling with descriptive error messages, and a test suite achieving adequate code coverage across both the backend routes and the custom library. The system must support both SQLite for development and DynamoDB for production data persistence, with the transition between these storage backends controlled solely by environment configuration rather than code changes.
+
+\section{Architecture and Design}
+
+The system follows a three-tier architecture pattern consisting of a presentation tier, application tier, and data tier, a well-established architectural approach for web applications that promotes separation of concerns and independent scalability of each tier \cite{newman2021}. The presentation tier is implemented as a single-page React application that communicates with the backend exclusively through RESTful API calls over HTTP. The application tier is built with Flask and organized using the blueprint pattern to separate concerns across conference, paper, review, author, and AWS service endpoints. The data tier uses Flask-SQLAlchemy with SQLite for local development and provides DynamoDB integration for production deployment.
+
+A key architectural decision was the implementation of a dual-mode service abstraction layer that encapsulates all AWS service interactions behind a consistent interface. Each of the six AWS services has a corresponding service class that accepts a \texttt{use\_aws} parameter at initialization time. When this parameter is set to false, the service operates in mock mode using in-memory data structures or local filesystem storage to simulate the AWS service behavior with deterministic responses. When set to true, the service initializes a boto3 client and delegates operations to the real AWS API. This design pattern, which can be understood as an application of the Strategy pattern described by Gamma et al. \cite{gamma1994}, enables complete application functionality during local development and testing without requiring AWS credentials or incurring cloud service costs, while ensuring that the transition to production requires only a configuration change.
+
+The Flask application factory pattern is employed to create the application instance with environment-specific configuration. As shown in the code excerpt below, the \texttt{create\_app} function accepts a configuration name parameter and initializes all service instances, database connections, and route blueprints in a deterministic sequence. This pattern facilitates testing by allowing the creation of isolated application instances with test-specific configuration, and it supports multiple deployment environments from a single codebase.
+
+\begin{lstlisting}[language=Python, caption={Application factory with service initialization}]
+def create_app(config_name='development'):
+    app = Flask(__name__)
+    app.config.from_object(
+        config_by_name.get(config_name))
+    CORS(app, resources={
+        r"/api/*": {"origins": "*"}})
+    init_db(app)
+
+    use_aws = app.config.get('USE_AWS', False)
+    region = app.config.get(
+        'AWS_REGION', 'eu-west-1')
+
+    app.config['DYNAMODB_SERVICE'] = \
+        DynamoDBService(
+            use_aws=use_aws, region=region)
+    app.config['S3_SERVICE'] = S3Service(
+        use_aws=use_aws,
+        bucket_name=app.config.get(
+            'S3_BUCKET_NAME', 'confpaper-uploads'),
+        region=region)
+    app.config['SES_SERVICE'] = SESService(
+        use_aws=use_aws,
+        sender_email=app.config.get(
+            'SES_SENDER_EMAIL',
+            'noreply@confpaper.example.com'),
+        region=region)
+    app.config['COMPREHEND_SERVICE'] = \
+        ComprehendService(
+            use_aws=use_aws, region=region)
+
+    app.register_blueprint(conference_bp)
+    app.register_blueprint(paper_bp)
+    app.register_blueprint(review_bp)
+    app.register_blueprint(author_bp)
+    app.register_blueprint(aws_bp)
+    return app
+\end{lstlisting}
+
+The frontend architecture uses React Router v6 for client-side routing with dedicated page components for each major feature area including conference management, paper submission, review assignment, and author profiles. A centralized API service module built on the axios HTTP client handles all communication with the backend, providing a clean separation between UI rendering logic and data fetching concerns. The data model consists of four SQLAlchemy model classes, each with a \texttt{to\_dict} method for JSON serialization, connected through foreign key relationships that enforce referential integrity at the database level. The architecture diagram illustrating these components and their relationships was generated programmatically using matplotlib, demonstrating the system topology including user interaction flow, inter-tier communication paths, and AWS service connections.
+
+\section{PaperFlow Library}
+
+The PaperFlow library is a custom Python package developed to encapsulate the domain logic of academic conference paper management independently of the web framework and cloud services. The library follows the principle of separation of concerns by implementing business rules in standalone classes that can be tested, reused, and evolved without any dependency on Flask, boto3, or any other infrastructure library \cite{fowler2018}. The library is distributed as a standard Python package with both \texttt{setup.py} and \texttt{pyproject.toml} configuration files, supporting installation through pip in both legacy and modern packaging workflows.
+
+The \texttt{Paper} class provides comprehensive validation of paper metadata against configurable thresholds defined as class constants. Title validation checks that the title length falls between a minimum of ten and a maximum of three hundred characters and that the first character is capitalized. Abstract validation verifies that the word count falls within the fifty-to-five-hundred-word range required by most academic conferences. Keyword validation enforces a minimum of three and maximum of eight unique keywords, performing case-insensitive duplicate detection. File format validation ensures that only PDF files are accepted by checking the file extension against an allowable set. Each validation method returns a structured tuple containing a boolean validity flag and a list of specific error messages, and the \texttt{validate\_all} method aggregates results across all dimensions into a comprehensive validation report.
+
+\begin{lstlisting}[language=Python, caption={Paper validation with structured error reporting}]
+from paperflow import Paper
+
+paper = Paper(
+    title="Cloud-Native Architecture",
+    abstract="This paper presents " + "w " * 60,
+    keywords=["cloud", "AWS", "NLP"],
+    file_name="paper.pdf"
+)
+report = paper.validate_all()
+# report['is_valid'] -> True/False
+# report['title']['errors'] -> []
+# report['abstract']['errors'] -> []
+
+# Utility methods
+wc = paper.estimate_word_count()
+rt = paper.estimate_reading_time()
+kw = paper.extract_title_keywords()
+\end{lstlisting}
+
+Beyond validation, the Paper class provides utility methods for word count estimation by splitting on whitespace, reading time calculation based on a configurable words-per-minute parameter with a default of two hundred, keyword extraction from titles using stop-word filtering, and metadata summarization that returns a dictionary suitable for API responses. The class demonstrates encapsulation by maintaining all paper-related logic within a single cohesive unit.
+
+The \texttt{Reviewer} class implements expertise matching using a Jaccard-like similarity algorithm that supports both exact and partial keyword matches between reviewer expertise areas and paper keywords. The conflict of interest detection method checks for affiliation overlap by comparing institutional names, name similarity using string containment checks, and email domain matches that might indicate co-location at the same organization. The static \texttt{optimize\_assignments} method implements a greedy algorithm that iterates through all reviewer-paper pairs sorted by descending expertise match score, assigning each paper to the most qualified available reviewer while enforcing maximum workload limits per reviewer and excluding assignments where conflicts of interest have been detected.
+
+The \texttt{Conference} class manages the temporal and organizational aspects of academic conferences. Deadline tracking methods calculate time remaining or elapsed for each named deadline including submission, review, notification, and camera-ready deadlines, returning human-readable duration strings. Track management methods support adding and removing conference tracks with validation. Topic relevance checking compares paper keywords against the conference topic list to assess alignment. Capacity planning methods report the current submission count relative to the maximum capacity, with utilization percentage calculations. The conference lifecycle is managed through a status advancement method that follows a strict progression from setup through open, reviewing, decided, and archived states, preventing invalid state regressions.
+
+The \texttt{Submission} class implements a finite state machine for managing the paper submission workflow. Valid transitions are defined declaratively in a dictionary that maps each source state to a set of permissible target states. The \texttt{transition\_to} method enforces that only valid state transitions are executed, raising an exception with a descriptive error message when an invalid transition is attempted. The complete workflow supports nine states: draft, submitted, under review, revision requested, accepted, rejected, withdrawn, camera ready, and published. All state transitions are recorded in a history log with timestamps, providing a complete audit trail of the paper's journey through the review process.
+
+The \texttt{Scoring} class performs weighted aggregation of review scores across five evaluation dimensions with configurable weights that default to twenty-five percent each for originality and significance, twenty percent each for clarity and methodology, and ten percent for overall impression. The class provides statistical analysis methods including mean, median, and standard deviation calculations for each scoring dimension, enabling program committees to identify patterns in reviewer assessments.
+
+\begin{lstlisting}[language=Python, caption={Scoring class with weighted aggregation}]
+from paperflow import Scoring
+
+scoring = Scoring(
+    reviews=[
+        {'originality_score': 8,
+         'significance_score': 7,
+         'clarity_score': 9,
+         'methodology_score': 7,
+         'overall_score': 8},
+        {'originality_score': 6,
+         'significance_score': 8,
+         'clarity_score': 7,
+         'methodology_score': 6,
+         'overall_score': 7}
+    ],
+    acceptance_threshold=6.0
+)
+agg = scoring.calculate_aggregate_score()
+rec = scoring.generate_recommendation()
+dis = scoring.detect_reviewer_disagreement()
+\end{lstlisting}
+
+The disagreement detection method identifies cases where reviewers have significantly divergent assessments by computing the range and standard deviation of overall scores and comparing the range against a configurable threshold, defaulting to three points on the ten-point scale. Papers flagged for disagreement are recommended for additional review. The recommendation generation method produces structured acceptance decisions categorized as strong accept, accept, borderline, weak reject, or reject, each with an associated confidence level of high, medium, or low that reflects both the aggregate score position relative to the threshold and the presence or absence of reviewer disagreement.
+
+The library includes over thirty unit tests organized into test modules corresponding to each class, covering validation logic, edge cases such as empty inputs and boundary values, algorithm correctness for similarity calculations and score aggregation, and state machine behavior including valid and invalid transition attempts. The tests use the pytest framework and execute without any external dependencies.
+
+\section{Cloud Services Analysis}
+
+This section examines each of the six AWS services integrated into the application, justifying their selection over alternatives, describing how each is integrated into the architecture, and analyzing their strengths and limitations within the context of this application.
+
+Amazon DynamoDB was selected as the production data store due to its fully managed NoSQL architecture that provides consistent single-digit millisecond performance regardless of data volume \cite{dynamodb2024}. For an academic conference system that must handle structured data with varying schemas across different conference configurations, such as varying numbers of tracks, topics, and deadline types, DynamoDB's flexible schema design is particularly advantageous compared to relational databases that would require schema migrations for each structural change. The service supports both key-value and document data models, aligning well with the heterogeneous nature of conference, paper, review, and author data where each entity type has a different attribute structure. The on-demand capacity mode eliminates the need for upfront capacity planning, making it suitable for conference systems that experience highly variable load patterns with traffic spikes around submission deadlines followed by quiet periods. The DynamoDB service class wraps standard CRUD operations and provides an in-memory dictionary as the mock backend, ensuring identical code paths regardless of deployment mode. A limitation of DynamoDB in this context is the absence of native full-text search, which necessitates application-level filtering for keyword-based paper searches.
+
+Amazon S3 provides the object storage foundation for uploaded paper PDFs, selected for its industry-leading durability guarantee of eleven nines, which ensures that submitted papers are never lost due to storage failures \cite{s3guide}. This level of durability is critical for maintaining the integrity of the academic review process, where the loss of a submitted manuscript would be unacceptable. S3's integration with presigned URLs enables secure, time-limited access to paper files without exposing bucket credentials to the frontend application, allowing the React client to upload and download files directly from S3 while the backend controls access through short-lived URL generation. The service's lifecycle policies could be configured to transition older conference papers to the S3 Glacier storage class after the conference concludes, reducing long-term storage costs by up to ninety percent. In mock mode, the S3 service stores file metadata in memory and serves files from the local filesystem, maintaining the same interface contract.
+
+Amazon SES handles all email notifications within the system, providing programmatic email delivery with high deliverability rates and built-in bounce and complaint handling \cite{ses2024}. The SES service class implements three specialized email methods beyond the generic send capability. The submission confirmation method constructs a formatted email notifying authors that their paper has been received, including the paper title and conference name. The review assignment method notifies reviewers of their new assignments with deadline information. The decision notification method communicates final accept or reject decisions to authors.
+
+\begin{lstlisting}[language=Python, caption={SES service email delivery methods}]
+class SESService:
+    def send_submission_confirmation(self,
+            author_email, author_name,
+            paper_title, conference_name):
+        subject = (
+            f"Paper Submission Received "
+            f"- {conference_name}")
+        body = (
+            f"Dear {author_name},\n\n"
+            f"Your paper \"{paper_title}\" "
+            f"has been successfully submitted "
+            f"to {conference_name}.\n\n"
+            f"You will be notified when "
+            f"reviews are available.\n\n"
+            f"Best regards,\n"
+            f"Conference Management System")
+        return self.send_email(
+            author_email, subject, body)
+\end{lstlisting}
+
+SES was chosen over third-party email services such as SendGrid or Mailgun because of its native integration with the AWS ecosystem, its pay-per-email pricing model that avoids monthly subscription costs for low-volume conference communications, and its support for both plain text and HTML email content enabling rich notification emails with conference branding. The mock implementation maintains a complete in-memory log of all sent emails, accessible through a \texttt{get\_sent\_emails} method that facilitates testing and demonstration.
+
+Amazon Comprehend provides natural language processing capabilities for analyzing paper abstracts, offering pre-trained models for key phrase extraction, sentiment analysis, and named entity recognition without requiring machine learning expertise \cite{comprehend2024}. The \texttt{analyze\_abstract} method orchestrates all three NLP operations in a single call, returning a comprehensive analysis that includes extracted key phrases with confidence scores, sentiment classification with per-class probability distributions, detected entities with type labels such as organization, person, and technology, and metadata including word count and character count. The extracted key phrases supplement author-provided keywords to improve the accuracy of reviewer-paper matching by capturing concepts that authors may not have explicitly listed. Sentiment analysis provides a secondary signal about the tone and confidence of abstracts, while entity detection identifies specific organizations, technologies, and methodologies mentioned in the text. In mock mode, the Comprehend service uses a heuristic approach that extracts significant words from the text by filtering out common stop words and generates realistic confidence scores using controlled randomization, ensuring that the same code paths are exercised during testing.
+
+Amazon CloudFront serves as the content delivery network for both the React frontend static assets and paper PDF downloads. By caching content at over four hundred edge locations geographically distributed worldwide, CloudFront reduces latency for conference participants accessing the system from different regions \cite{aws2024}. The invalidation API enables cache refresh when frontend assets are updated during deployment, ensuring that users always receive the latest version of the application. For paper downloads, CloudFront provides an additional layer of bandwidth optimization and access control through signed URLs. The mock implementation generates localhost URLs that maintain the same interface contract.
+
+AWS Lambda provides serverless compute for asynchronous processing tasks that do not require immediate synchronous response. Paper submission processing, which includes NLP analysis through Comprehend and similarity checking against existing papers, is offloaded to Lambda functions to avoid blocking the API response to the submitting author. Reviewer assignment optimization, which involves computing expertise matches across all available reviewers using the PaperFlow library's Jaccard similarity algorithm, is similarly delegated to Lambda for background execution. The event-driven invocation model ensures that compute resources are consumed only when papers are actually submitted, making the cost proportional to actual usage rather than provisioned capacity. The mock implementation executes the same processing logic synchronously, returning pre-computed results that simulate the eventual output of the real Lambda functions.
+
+\section{Implementation Details}
+
+The Flask backend is structured using the application factory pattern with environment-specific configuration classes defined in a dedicated \texttt{config.py} module. The base configuration class establishes shared settings including the secret key, CORS configuration, and default AWS region. Three derived classes for development, testing, and production override environment-specific values such as database URIs, the \texttt{USE\_AWS} flag, and S3 bucket names. The testing configuration uses an in-memory SQLite database to ensure test isolation and execution speed.
+
+Each model class inherits from the SQLAlchemy \texttt{Model} base and includes a \texttt{to\_dict} method that serializes the instance to a dictionary suitable for JSON responses. The route modules follow a consistent implementation pattern where each endpoint wraps its logic in try-except blocks, validates that all required fields are present in the request body, performs the database operation using SQLAlchemy's session management, and returns JSON responses with appropriate HTTP status codes. Create operations return 201 Created, successful reads and updates return 200 OK, deletions return 200 with a confirmation message, and validation failures return 400 Bad Request with descriptive error messages. Not-found conditions return 404, and unexpected server errors return 500 with the exception message.
+
+The service abstraction layer represents the most architecturally significant implementation detail. Each service class constructor accepts a \texttt{use\_aws} boolean parameter that determines the operational mode at initialization time. When true, the constructor initializes a boto3 client for the corresponding AWS service using the configured region. When false, the service uses in-memory dictionaries, local filesystem storage, or algorithmic simulation to provide equivalent functionality. This approach means that every code path through the application is exercised identically regardless of whether real AWS services are connected, which was validated by running the complete test suite in both mock and live modes during development.
+
+\begin{lstlisting}[language=Python, caption={Comprehend service NLP analysis}]
+class ComprehendService:
+    def analyze_abstract(self, abstract_text):
+        return {
+            'key_phrases':
+                self.extract_key_phrases(
+                    abstract_text),
+            'sentiment':
+                self.detect_sentiment(
+                    abstract_text),
+            'entities':
+                self.detect_entities(
+                    abstract_text),
+            'analyzed_at':
+                datetime.utcnow().isoformat(),
+            'word_count':
+                len(abstract_text.split()),
+            'character_count':
+                len(abstract_text)
+        }
+\end{lstlisting}
+
+The React frontend implements a single-page application with nine page components and three shared components for navigation, footer, and confirmation dialogs. The API service module centralizes all backend communication through axios, providing a consistent interface for CRUD operations across all entity types with standardized error handling and response parsing. Each page component manages its own state using React hooks including \texttt{useState} for local state management and \texttt{useEffect} for data fetching on component mount. Forms for creating and editing entities include client-side validation that mirrors the backend validation rules, providing immediate feedback to users before the form is submitted.
+
+The test suite comprises over thirty tests for the backend routes and over thirty tests for the PaperFlow library, totaling more than sixty automated tests. The backend tests use pytest fixtures to create test clients with in-memory SQLite databases, ensuring complete isolation between test functions. Each test module covers the full CRUD lifecycle for its corresponding entity, including successful creation with valid data, validation error cases with missing or malformed fields, retrieval of individual records by ID, listing of all records with optional filtering, update operations with partial data, deletion with subsequent verification that the record no longer exists, and entity-specific features such as paper status transitions and NLP analysis triggering.
+
+\section{CI/CD Pipeline}
+
+The continuous integration and deployment pipeline is implemented using GitHub Actions with a workflow defined in \texttt{deploy.yml} that executes on every push to the main branch and on pull request creation \cite{ghactions2024}. The pipeline consists of three sequential stages that enforce a quality gate progression where each stage must pass before the next is executed.
+
+The first stage installs the PaperFlow library in development mode using \texttt{pip install -e .} and executes the library test suite using pytest with verbose output and coverage reporting. This stage validates that the core domain logic, including paper validation, reviewer matching, submission workflow management, conference lifecycle tracking, and review score aggregation, remains correct after any code changes. The library tests execute in under five seconds due to their independence from external services, providing rapid feedback on domain logic correctness.
+
+The second stage installs the backend dependencies from \texttt{requirements.txt}, configures the Flask application in testing mode, runs the backend route tests against an in-memory SQLite database, and packages the application artifacts for deployment. The backend tests exercise all API endpoints across all four entity types, verifying HTTP status codes, response body structure, and database state changes. The third stage builds the React frontend using \texttt{npm run build}, producing an optimized production bundle with minified JavaScript, extracted CSS, and hashed filenames for cache invalidation.
+
+The pipeline is configured to fail fast, meaning that if the library tests in stage one fail, stages two and three are not executed, preventing deployment of code with broken domain logic. Environment variables for AWS credentials are configured as GitHub repository secrets, ensuring that sensitive configuration is never stored in the codebase. The pipeline execution history provides an audit trail of all code changes and their test results.
+
+\section{Conclusions and Future Work}
+
+This project successfully demonstrates the development of a cloud-native web application that integrates six Amazon Web Services to provide a comprehensive academic conference paper management solution. The three-tier architecture with a React frontend, Flask backend, and AWS service layer provides a clean separation of concerns that facilitates both independent development of each tier and flexible deployment across different environments. The dual-mode architecture with mock service implementations enables complete local development and testing without cloud service dependencies, significantly accelerating the development cycle while the service abstraction layer ensures seamless transition to production AWS services through a single configuration flag.
+
+The PaperFlow library demonstrates effective application of object-oriented programming principles to encapsulate domain logic that is independent of infrastructure concerns. The five classes provide reusable components for paper validation with structured error reporting, reviewer assignment optimization using Jaccard similarity, conference lifecycle management with deadline tracking, submission workflow tracking through a finite state machine, and review score aggregation with statistical analysis and recommendation generation. The library's comprehensive test suite of over thirty tests ensures correctness and provides regression protection as the codebase evolves.
+
+Key lessons learned during development include the importance of designing cloud service abstractions early in the project before any service-specific code is written, which prevents tight coupling between application logic and cloud provider APIs. The value of mock implementations for development velocity cannot be overstated, as they eliminated the need to manage AWS credentials, handle network latency, and pay for cloud resources during the development and testing phases. The application factory pattern proved essential for managing multiple deployment environments from a single codebase, and the blueprint pattern provided a natural organizational structure for the growing route handler collection. The automated CI/CD pipeline proved invaluable for maintaining code quality throughout the development process, catching regressions within minutes of code changes being pushed \cite{humble2010continuous}.
+
+Several limitations were identified during the project. The system currently lacks user authentication and role-based access control, which would be essential for a production deployment. The reviewer assignment algorithm uses a greedy approach that may not find the globally optimal assignment. The NLP analysis relies solely on Comprehend's pre-trained models without domain-specific fine-tuning for academic text. Future enhancements could address these limitations by implementing OAuth 2.0 authentication with Amazon Cognito, replacing the greedy assignment algorithm with the Hungarian method for optimal matching, developing a plagiarism detection feature using Amazon Textract for document comparison, implementing real-time notification capabilities using WebSocket connections, and deploying the application to AWS Elastic Beanstalk with auto-scaling capabilities to handle peak loads around conference submission deadlines.
+
+\begin{thebibliography}{10}
+
+\bibitem{aws2024}
+Amazon Web Services, ``AWS Documentation,'' 2024. [Online]. Available: https://docs.aws.amazon.com/
+
+\bibitem{flask2024}
+Pallets Projects, ``Flask Documentation,'' 2024. [Online]. Available: https://flask.palletsprojects.com/
+
+\bibitem{react2024}
+Meta Platforms, ``React Documentation,'' 2024. [Online]. Available: https://react.dev/
+
+\bibitem{dynamodb2024}
+Amazon Web Services, ``Amazon DynamoDB Developer Guide,'' 2024. [Online]. Available: https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/
+
+\bibitem{comprehend2024}
+Amazon Web Services, ``Amazon Comprehend Developer Guide,'' 2024. [Online]. Available: https://docs.aws.amazon.com/comprehend/latest/dg/
+
+\bibitem{ses2024}
+Amazon Web Services, ``Amazon SES Developer Guide,'' 2024. [Online]. Available: https://docs.aws.amazon.com/ses/latest/dg/
+
+\bibitem{s3guide}
+Amazon Web Services, ``Amazon S3 User Guide,'' 2024. [Online]. Available: https://docs.aws.amazon.com/s3/
+
+\bibitem{fowler2018}
+M. Fowler, ``Refactoring: Improving the Design of Existing Code,'' 2nd ed. Addison-Wesley, 2018.
+
+\bibitem{newman2021}
+S. Newman, ``Building Microservices: Designing Fine-Grained Systems,'' 2nd ed. O'Reilly Media, 2021.
+
+\bibitem{gamma1994}
+E. Gamma, R. Helm, R. Johnson, and J. Vlissides, ``Design Patterns: Elements of Reusable Object-Oriented Software,'' Addison-Wesley, 1994.
+
+\bibitem{bornmann2015growth}
+L. Bornmann and R. Mutz, ``Growth rates of modern science: A bibliometric analysis based on the number of publications and cited references,'' \textit{Journal of the Association for Information Science and Technology}, vol. 66, no. 11, pp. 2215--2222, 2015.
+
+\bibitem{humble2010continuous}
+J. Humble and D. Farley, ``Continuous Delivery: Reliable Software Releases through Build, Test, and Deployment Automation,'' Addison-Wesley, 2010.
+
+\bibitem{ghactions2024}
+GitHub, ``GitHub Actions Documentation,'' 2024. [Online]. Available: https://docs.github.com/en/actions
+
+\bibitem{pytest2024}
+pytest Development Team, ``pytest Documentation,'' 2024. [Online]. Available: https://docs.pytest.org/
+
+\end{thebibliography}
+
+\end{document}
