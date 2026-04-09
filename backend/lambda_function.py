@@ -41,10 +41,17 @@ def response(status, body):
 
 
 def parse_body(event):
-    body = event.get("body", "{}")
+    body = event.get("body")
     if not body:
-        body = "{}"
-    return json.loads(body)
+        return {}
+    if isinstance(body, dict):
+        return body
+    if event.get("isBase64Encoded"):
+        body = base64.b64decode(body).decode("utf-8")
+    try:
+        return json.loads(body)
+    except (json.JSONDecodeError, TypeError):
+        return {}
 
 
 class DecimalEncoder(json.JSONEncoder):
@@ -629,11 +636,11 @@ def handle_subscribers():
 # ── SEED DATA ────────────────────────────────────────────────────────────────
 def handle_seed():
     from boto3.dynamodb.conditions import Attr
-    res = table.scan(FilterExpression=Attr("entityType").eq("user") & Attr("email").eq("admin@paperhub.demo"))
+    res = table.scan(FilterExpression=Attr("entityType").eq("USER") & Attr("email").eq("admin@paperhub.demo"))
     if res.get("Items"):
         return response(200, {"message": "Demo data already exists"})
 
-    now = int(time.time())
+    now = datetime.utcnow().isoformat()
     users = [
         {"username": "Admin User", "email": "admin@paperhub.demo", "password": "Admin1234!", "role": "admin"},
         {"username": "Dr. Smith", "email": "reviewer@paperhub.demo", "password": "Review1234!", "role": "reviewer"},
@@ -644,7 +651,7 @@ def handle_seed():
         uid = str(uuid.uuid4())
         pw_hash, salt = hash_password(u["password"])
         table.put_item(Item={
-            "id": uid, "entityType": "user", "username": u["username"],
+            "id": uid, "entityType": "USER", "username": u["username"],
             "email": u["email"], "passwordHash": pw_hash, "salt": salt,
             "role": u["role"], "createdAt": now,
         })
@@ -652,7 +659,7 @@ def handle_seed():
 
     conf_id = str(uuid.uuid4())
     table.put_item(Item={
-        "id": conf_id, "entityType": "conference",
+        "id": conf_id, "entityType": "CONFERENCE",
         "name": "IEEE Cloud Computing 2026",
         "description": "International conference on cloud computing, serverless architectures, and distributed systems.",
         "startDate": "2026-06-15", "endDate": "2026-06-18",
@@ -675,7 +682,7 @@ def handle_seed():
     for p in papers:
         pid = str(uuid.uuid4())
         table.put_item(Item={
-            "id": pid, "entityType": "paper", "title": p["title"],
+            "id": pid, "entityType": "PAPER", "title": p["title"],
             "abstract": p["abstract"], "authors": ["Jane Author"],
             "keywords": p["keywords"], "conferenceId": conf_id,
             "authorId": user_ids["author"], "authorEmail": "author@paperhub.demo",
@@ -683,7 +690,7 @@ def handle_seed():
         })
         if p["status"] == "under_review":
             table.put_item(Item={
-                "id": str(uuid.uuid4()), "entityType": "review", "paperId": pid,
+                "id": str(uuid.uuid4()), "entityType": "REVIEW", "paperId": pid,
                 "reviewerId": user_ids["reviewer"], "reviewerName": "Dr. Smith",
                 "score": decimal.Decimal("8"), "comments": "Strong methodology and clear results. Minor revisions suggested for the conclusion section.",
                 "recommendation": "accept", "createdAt": now,
