@@ -91,6 +91,33 @@ export default function Login() {
             </Link>
           </p>
         </div>
+
+        <div className="mt-4 bg-white rounded-xl shadow-sm border border-gray-200 p-4">
+          <p className="text-xs font-medium text-gray-500 mb-2 text-center">Demo Credentials</p>
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={() => { setEmail('admin@paperhub.demo'); setPassword('Admin1234!'); }}
+              className="w-full text-left px-3 py-2 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg text-xs text-blue-800 transition-colors cursor-pointer"
+            >
+              <span className="font-semibold">Admin:</span> admin@paperhub.demo / Admin1234!
+            </button>
+            <button
+              type="button"
+              onClick={() => { setEmail('reviewer@paperhub.demo'); setPassword('Review1234!'); }}
+              className="w-full text-left px-3 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-lg text-xs text-emerald-800 transition-colors cursor-pointer"
+            >
+              <span className="font-semibold">Reviewer:</span> reviewer@paperhub.demo / Review1234!
+            </button>
+            <button
+              type="button"
+              onClick={() => { setEmail('author@paperhub.demo'); setPassword('Author1234!'); }}
+              className="w-full text-left px-3 py-2 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg text-xs text-gray-800 transition-colors cursor-pointer"
+            >
+              <span className="font-semibold">Author:</span> author@paperhub.demo / Author1234!
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

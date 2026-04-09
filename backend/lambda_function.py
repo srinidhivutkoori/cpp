@@ -9,7 +9,6 @@ import decimal
 from datetime import datetime
 
 import boto3
-import jwt
 
 # ── ENV ──────────────────────────────────────────────────────────────────────
 DYNAMODB_TABLE = os.environ.get("DYNAMODB_TABLE", "confpapers-prod")
@@ -83,19 +82,41 @@ def verify_password(password, hashed, salt):
     return dk.hex() == hashed
 
 
+def _b64_encode(data):
+    return base64.urlsafe_b64encode(json.dumps(data).encode()).decode().rstrip("=")
+
+def _b64_decode(s):
+    s += "=" * (4 - len(s) % 4)
+    return json.loads(base64.urlsafe_b64decode(s))
+
 def generate_token(user_id, username, email, role):
+    header = {"alg": "HS256", "typ": "JWT"}
     payload = {
         "userId": user_id,
         "username": username,
         "email": email,
         "role": role,
         "exp": int(time.time()) + 86400,
+        "iat": int(time.time()),
     }
-    return jwt.encode(payload, JWT_SECRET, algorithm="HS256")
+    segments = _b64_encode(header) + "." + _b64_encode(payload)
+    sig = hmac.new(JWT_SECRET.encode(), segments.encode(), hashlib.sha256).digest()
+    return segments + "." + base64.urlsafe_b64encode(sig).decode().rstrip("=")
 
 
 def decode_token(token):
-    return jwt.decode(token, JWT_SECRET, algorithms=["HS256"])
+    parts = token.split(".")
+    if len(parts) != 3:
+        return None
+    segments = parts[0] + "." + parts[1]
+    expected = hmac.new(JWT_SECRET.encode(), segments.encode(), hashlib.sha256).digest()
+    expected_b64 = base64.urlsafe_b64encode(expected).decode().rstrip("=")
+    if not hmac.compare_digest(expected_b64, parts[2]):
+        return None
+    payload = _b64_decode(parts[1])
+    if payload.get("exp", 0) < time.time():
+        return None
+    return payload
 
 
 def get_user_from_event(event):
@@ -605,6 +626,72 @@ def handle_subscribers():
         return response(500, {"error": str(e)})
 
 
+# ── SEED DATA ────────────────────────────────────────────────────────────────
+def handle_seed():
+    from boto3.dynamodb.conditions import Attr
+    res = table.scan(FilterExpression=Attr("entityType").eq("user") & Attr("email").eq("admin@paperhub.demo"))
+    if res.get("Items"):
+        return response(200, {"message": "Demo data already exists"})
+
+    now = int(time.time())
+    users = [
+        {"username": "Admin User", "email": "admin@paperhub.demo", "password": "Admin1234!", "role": "admin"},
+        {"username": "Dr. Smith", "email": "reviewer@paperhub.demo", "password": "Review1234!", "role": "reviewer"},
+        {"username": "Jane Author", "email": "author@paperhub.demo", "password": "Author1234!", "role": "author"},
+    ]
+    user_ids = {}
+    for u in users:
+        uid = str(uuid.uuid4())
+        pw_hash, salt = hash_password(u["password"])
+        table.put_item(Item={
+            "id": uid, "entityType": "user", "username": u["username"],
+            "email": u["email"], "passwordHash": pw_hash, "salt": salt,
+            "role": u["role"], "createdAt": now,
+        })
+        user_ids[u["role"]] = uid
+
+    conf_id = str(uuid.uuid4())
+    table.put_item(Item={
+        "id": conf_id, "entityType": "conference",
+        "name": "IEEE Cloud Computing 2026",
+        "description": "International conference on cloud computing, serverless architectures, and distributed systems.",
+        "startDate": "2026-06-15", "endDate": "2026-06-18",
+        "submissionDeadline": "2026-05-01",
+        "topics": ["cloud computing", "serverless", "microservices", "DevOps", "containers"],
+        "createdBy": user_ids["admin"], "createdAt": now,
+    })
+
+    papers = [
+        {"title": "Serverless Architecture Patterns for Enterprise Applications",
+         "abstract": "This paper explores design patterns for building scalable enterprise applications using serverless computing on AWS Lambda. We analyze cost, latency, and cold-start mitigation strategies across production workloads.",
+         "keywords": ["serverless", "AWS Lambda", "architecture"], "status": "under_review"},
+        {"title": "Container Orchestration with Kubernetes: A Performance Study",
+         "abstract": "We present a comprehensive performance evaluation of Kubernetes container orchestration across multiple cloud providers. Our benchmarks cover autoscaling behavior, pod scheduling efficiency, and resource utilization patterns.",
+         "keywords": ["kubernetes", "containers", "performance"], "status": "accepted"},
+        {"title": "Edge Computing and IoT Data Processing Pipelines",
+         "abstract": "This research proposes a novel framework for processing IoT sensor data at the edge before cloud ingestion. We demonstrate reduced latency and bandwidth savings through real-world smart city deployments in Dublin.",
+         "keywords": ["edge computing", "IoT", "data pipeline"], "status": "submitted"},
+    ]
+    for p in papers:
+        pid = str(uuid.uuid4())
+        table.put_item(Item={
+            "id": pid, "entityType": "paper", "title": p["title"],
+            "abstract": p["abstract"], "authors": ["Jane Author"],
+            "keywords": p["keywords"], "conferenceId": conf_id,
+            "authorId": user_ids["author"], "authorEmail": "author@paperhub.demo",
+            "status": p["status"], "pdfUrl": "", "createdAt": now, "updatedAt": now,
+        })
+        if p["status"] == "under_review":
+            table.put_item(Item={
+                "id": str(uuid.uuid4()), "entityType": "review", "paperId": pid,
+                "reviewerId": user_ids["reviewer"], "reviewerName": "Dr. Smith",
+                "score": decimal.Decimal("8"), "comments": "Strong methodology and clear results. Minor revisions suggested for the conclusion section.",
+                "recommendation": "accept", "createdAt": now,
+            })
+
+    return response(200, {"message": "Seeded 3 users, 1 conference, 3 papers, 1 review"})
+
+
 # ── MAIN HANDLER ─────────────────────────────────────────────────────────────
 def lambda_handler(event, context):
     method = event.get("httpMethod", "GET")
@@ -628,6 +715,9 @@ def lambda_handler(event, context):
 
     if resource == "subscribers" and method == "GET":
         return handle_subscribers()
+
+    if resource == "seed" and method == "POST":
+        return handle_seed()
 
     # ── AUTH ROUTES (no token needed) ────────────────────────────────────
     if resource == "auth":

@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+const API_BASE = import.meta.env.VITE_API_URL || '';
+
 const API = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE,
 });
 
 API.interceptors.request.use((config) => {
@@ -38,16 +40,12 @@ export const getConference = (id) => API.get(`/conferences/${id}`);
 
 // Papers
 export const getPapers = (params) => API.get('/papers', { params });
-export const submitPaper = (data) => API.post('/papers', data, {
-  headers: { 'Content-Type': 'multipart/form-data' },
-});
+export const submitPaper = (data) => API.post('/papers', data);
 export const getPaper = (id) => API.get(`/papers/${id}`);
-export const updatePaper = (id, data) => API.put(`/papers/${id}`, data, {
-  headers: { 'Content-Type': 'multipart/form-data' },
-});
+export const updatePaper = (id, data) => API.put(`/papers/${id}`, data);
 export const deletePaper = (id) => API.delete(`/papers/${id}`);
 export const updatePaperStatus = (id, status) =>
-  API.patch(`/papers/${id}/status`, { status });
+  API.put(`/papers/${id}/status`, { status });
 
 // Reviews
 export const getReviews = (paperId) => API.get(`/papers/${paperId}/reviews`);
@@ -59,6 +57,6 @@ export const getDashboard = () => API.get('/dashboard');
 
 // Subscriptions
 export const subscribe = (email) => API.post('/subscribe', { email });
-export const getSubscriberCount = () => API.get('/subscribe/count');
+export const getSubscriberCount = () => API.get('/subscribers');
 
 export default API;
