@@ -186,6 +186,42 @@ def update_paper(paper_id):
         return jsonify({'error': str(e)}), 500
 
 
+@paper_bp.route('/api/papers/<int:paper_id>/status', methods=['PUT'])
+def update_paper_status(paper_id):
+    """
+    Update only the status of a paper (used by admin).
+
+    Args:
+        paper_id (int): Paper primary key.
+
+    Returns:
+        JSON updated paper object with 200 status.
+    """
+    try:
+        paper = Paper.query.get(paper_id)
+        if not paper:
+            return jsonify({'error': 'Paper not found'}), 404
+
+        data = request.get_json()
+        new_status = data.get('status')
+        if not new_status:
+            return jsonify({'error': 'Status is required'}), 400
+
+        valid_statuses = ['submitted', 'under_review', 'accepted', 'rejected', 'revision_required']
+        if new_status not in valid_statuses:
+            return jsonify({'error': f'Invalid status. Must be one of: {", ".join(valid_statuses)}'}), 400
+
+        paper.status = new_status
+        if 'decision_notes' in data:
+            paper.decision_notes = data['decision_notes']
+
+        db.session.commit()
+        return jsonify(paper.to_dict()), 200
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
 @paper_bp.route('/api/papers/<int:paper_id>', methods=['DELETE'])
 def delete_paper(paper_id):
     """

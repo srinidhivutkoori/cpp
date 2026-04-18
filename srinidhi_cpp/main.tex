@@ -12,6 +12,8 @@
 \usepackage{float}
 \usepackage{booktabs}
 \usepackage{tabularx}
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds}
 
 % Code listing style
 \lstdefinestyle{codestyle}{
@@ -37,10 +39,10 @@
 \title{PaperHub: A Serverless Cloud-Based Academic Conference Paper Submission System on AWS}
 
 \author{\IEEEauthorblockN{Srinidhi Vutkoori}
-\IEEEauthorblockA{Student ID: x00000000 \\
+\IEEEauthorblockA{Student ID: x25173243 \\
 MSc in Cloud Computing \\
 National College of Ireland, Dublin \\
-srinidhi.vutkoori@student.ncirl.ie}}
+x25173243@student.ncirl.ie}}
 
 \maketitle
 
@@ -48,7 +50,7 @@ srinidhi.vutkoori@student.ncirl.ie}}
 % ABSTRACT
 % ============================================================
 \begin{abstract}
-This paper presents the design, implementation, and deployment of PaperHub, a serverless cloud-based academic conference paper submission and peer review management system hosted on Amazon Web Services. The application enables conference organisers, authors, and reviewers to manage the complete lifecycle of academic paper submissions through a role-based web interface, encompassing conference creation, paper submission with PDF upload, structured peer review with scoring and recommendations, and automated status workflow management. The system leverages six AWS services programmatically, namely AWS Lambda for serverless compute, Amazon DynamoDB for NoSQL data storage, Amazon API Gateway for RESTful endpoint routing, Amazon S3 for PDF document storage and static website hosting, Amazon Simple Notification Service for status change email notifications, and AWS Identity and Access Management for fine-grained access control. A custom object-oriented Python library called confmanager-nci was developed and published, providing paper management, review coordination, conference administration, and paper formatting utilities with comprehensive validation logic. The application implements a role-based access control model distinguishing between author, reviewer, and administrator roles, with JWT-based authentication governing all API interactions. A CI/CD pipeline implemented through GitHub Actions automates testing, infrastructure provisioning, and deployment across all application tiers. The results demonstrate that serverless cloud architectures can effectively support complex multi-role academic workflow applications with robust state management and notification capabilities.
+This paper presents the design, implementation, and deployment of PaperHub, a serverless cloud-based academic conference paper submission and peer review management system hosted on Amazon Web Services. The application enables conference organisers, authors, and reviewers to manage the complete lifecycle of academic paper submissions through a role-based web interface, encompassing conference creation, paper submission with PDF upload, structured peer review with scoring and recommendations, and automated status workflow management. The system leverages six AWS services programmatically, namely AWS Lambda for serverless compute, Amazon DynamoDB for NoSQL data storage, Amazon API Gateway for RESTful endpoint routing, Amazon S3 for PDF document storage and static website hosting, Amazon Simple Notification Service for status change email notifications, and AWS Identity and Access Management for fine-grained access control. A custom object-oriented Python library called confmanager-nci was developed and published, providing paper management, review coordination, conference administration, and paper formatting utilities with comprehensive validation logic. The application implements a role-based access control model distinguishing between author, reviewer, and administrator roles, with custom HMAC-based JWT authentication governing all API interactions. A CI/CD pipeline implemented through GitHub Actions automates testing, infrastructure provisioning, and deployment across all application tiers. The results demonstrate that serverless cloud architectures can effectively support complex multi-role academic workflow applications with robust state management and notification capabilities.
 \end{abstract}
 
 % ============================================================
@@ -60,7 +62,7 @@ The academic conference ecosystem relies heavily on paper submission and peer re
 
 The motivation for this project arises from the observation that many small to medium-sized academic conferences and workshops lack access to affordable, feature-complete submission management systems. Existing solutions either impose per-paper fees that become prohibitive for student-run or departmental conferences, or require self-hosted infrastructure that demands ongoing maintenance and security management. By adopting the serverless computing paradigm available on AWS, this project demonstrates that a fully functional conference paper submission system with role-based access, peer review workflows, and automated notifications can be delivered at minimal operational cost \cite{serverless}.
 
-The primary objectives of this project are threefold. First, to design and implement a serverless paper submission system supporting role-based access control for authors, reviewers, and administrators with JWT-based authentication. Second, to implement a complete paper lifecycle workflow including submission, peer review assignment, score aggregation, and status transition management with validation rules governing permitted state changes. Third, to develop a reusable Python library that encapsulates conference management domain logic including paper validation, review score processing, and conference scheduling utilities. The application employs six AWS services programmatically and demonstrates cloud-native architectural patterns including event-driven processing, role-based authorisation, and continuous deployment.
+The primary objectives of this project are threefold. First, to design and implement a serverless paper submission system supporting role-based access control for authors, reviewers, and administrators with custom HMAC-based JWT authentication. Second, to implement a complete paper lifecycle workflow including submission, peer review assignment, score aggregation, and status transition management with validation rules governing permitted state changes. Third, to develop a reusable Python library that encapsulates conference management domain logic including paper validation, review score processing, and conference scheduling utilities. The application employs six AWS services programmatically and demonstrates cloud-native architectural patterns including event-driven processing, role-based authorisation, and continuous deployment.
 
 % ============================================================
 % PROJECT SPECIFICATION AND REQUIREMENTS
@@ -69,7 +71,7 @@ The primary objectives of this project are threefold. First, to design and imple
 
 \subsection{Functional Requirements}
 
-The application satisfies the following functional requirements organised around the three primary user roles. First, the authentication and authorisation subsystem provides user registration and login with role assignment, where users are classified as authors, reviewers, or administrators. Authentication is managed through JWT tokens that encode the user's role, enabling the backend to enforce role-based access control on all API endpoints without maintaining server-side session state.
+The application satisfies the following functional requirements organised around the three primary user roles. First, the authentication and authorisation subsystem provides user registration and login with role assignment, where users are classified as authors, reviewers, or administrators. Authentication is managed through custom HMAC-based JWT tokens that encode the user's role, enabling the backend to enforce role-based access control on all API endpoints without maintaining server-side session state.
 
 Second, the conference management subsystem allows administrators to create, update, and delete conferences with attributes including conference name, description, submission deadline, review deadline, and notification preferences. Administrators can view all conferences and manage the overall system configuration, while authors and reviewers can browse available conferences and their associated submission windows.
 
@@ -81,7 +83,7 @@ Fifth, the status workflow subsystem enforces a defined state machine for paper 
 
 \subsection{Non-Functional Requirements}
 
-The non-functional requirements address scalability, security, availability, and cost efficiency. The serverless architecture provides automatic horizontal scaling through AWS Lambda, accommodating variable submission volumes that typically peak around conference deadlines \cite{awslambda}. Security is implemented through multiple layers: JWT-based authentication with role claims, IAM role-based access control for the Lambda execution environment restricting access to only the required AWS resources, CORS policies on API Gateway, and S3 bucket policies that enforce appropriate read and write permissions for PDF storage. Availability is ensured through the managed nature of all six AWS services within the eu-west-1 region, each providing built-in redundancy. Cost efficiency is achieved through Lambda's pay-per-invocation model and DynamoDB's on-demand billing, where charges accrue only during active submission and review periods.
+The non-functional requirements address scalability, security, availability, and cost efficiency. The serverless architecture provides automatic horizontal scaling through AWS Lambda, accommodating variable submission volumes that typically peak around conference deadlines \cite{awslambda}. Security is implemented through multiple layers: custom HMAC-based JWT authentication with role claims, IAM role-based access control for the Lambda execution environment restricting access to only the required AWS resources, CORS policies on API Gateway, and S3 bucket policies that enforce appropriate read and write permissions for PDF storage. Availability is ensured through the managed nature of all six AWS services within the eu-west-1 region, each providing built-in redundancy. Cost efficiency is achieved through Lambda's pay-per-invocation model and DynamoDB's on-demand billing, where charges accrue only during active submission and review periods.
 
 % ============================================================
 % ARCHITECTURE AND DESIGN
@@ -90,11 +92,51 @@ The non-functional requirements address scalability, security, availability, and
 
 PaperHub follows a serverless architecture pattern comprising three distinct tiers: a static frontend hosted on Amazon S3, a serverless API layer powered by AWS Lambda and Amazon API Gateway, and a data persistence layer using Amazon DynamoDB and Amazon S3 \cite{cloudpatterns}. This architecture was selected for its elimination of server management overhead, automatic scaling capabilities during peak submission periods, and cost-optimised pay-per-use billing that is particularly advantageous for conference systems with cyclical usage patterns.
 
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=1.4cm and 1.6cm,
+    box/.style={draw, rounded corners, minimum width=2.2cm, minimum height=0.9cm, align=center, font=\scriptsize\sffamily, fill=#1},
+    box/.default={blue!8},
+    arr/.style={-{Stealth[length=2.2mm]}, thick, color=gray!70},
+    every node/.style={font=\scriptsize\sffamily}
+]
+    % Frontend tier
+    \node[box=orange!12] (browser) {Browser\\(User)};
+    \node[box=yellow!15, right=of browser] (s3fe) {S3\\React SPA};
+
+    % API tier
+    \node[box=purple!12, right=of s3fe] (apigw) {API\\Gateway};
+    \node[box=blue!12, right=of apigw] (lambda) {Lambda\\(Python)};
+
+    % Data tier - below lambda
+    \node[box=green!12, below left=1.2cm and -0.3cm of lambda] (dynamo) {DynamoDB\\(Single Table)};
+    \node[box=yellow!15, below=1.2cm of lambda] (s3pdf) {S3\\(PDFs)};
+    \node[box=red!10, below right=1.2cm and -0.3cm of lambda] (sns) {SNS\\(Notify)};
+
+    % IAM governance - spanning bottom
+    \node[box=gray!15, below=2.8cm of apigw, minimum width=7cm] (iam) {IAM -- Fine-Grained Access Governance};
+
+    % Arrows
+    \draw[arr] (browser) -- (s3fe);
+    \draw[arr] (s3fe) -- (apigw);
+    \draw[arr] (apigw) -- (lambda);
+    \draw[arr] (lambda) -- (dynamo);
+    \draw[arr] (lambda) -- (s3pdf);
+    \draw[arr] (lambda) -- (sns);
+
+    % Dashed governance lines
+    \draw[dashed, gray!50] (iam.north -| lambda) -- (lambda.south);
+\end{tikzpicture}
+\caption{PaperHub serverless architecture on AWS}
+\label{fig:architecture}
+\end{figure}
+
 The frontend is a single-page React application built with Vite and styled using Tailwind CSS. The compiled static assets are deployed to an S3 bucket configured for static website hosting. The React application communicates with the backend exclusively through RESTful API calls routed through Amazon API Gateway, with JWT tokens attached to all authenticated requests via the Authorization header.
 
 The API layer consists of a single AWS Lambda function that receives all incoming HTTP requests through API Gateway's proxy integration. The Lambda function implements a routing mechanism that dispatches requests to the appropriate handler based on the HTTP method, URL path, and the authenticated user's role extracted from the JWT token. This single-function approach simplifies deployment while the internal routing ensures clean separation of concerns between conference, paper, review, and authentication handlers. The Lambda function integrates with four additional AWS services: DynamoDB for data persistence, S3 for PDF storage, SNS for notifications, and IAM for execution permissions.
 
-The data layer uses Amazon DynamoDB with three tables: a conferences table keyed by conferenceId, a papers table keyed by paperId with a global secondary index on conferenceId for efficient queries of all papers within a conference, and a users table keyed by userId for authentication data. DynamoDB was selected over relational alternatives because the primary access patterns involve retrieving individual entities by their identifier or querying papers by conference, both of which align efficiently with DynamoDB's key-value and secondary index query patterns \cite{awsdynamodb}. The PDF documents are stored in a dedicated S3 bucket with presigned URLs generated for secure, time-limited download access.
+The data layer employs a single-table design in Amazon DynamoDB, using one table called \texttt{confpapers-prod} to store all entity types. Each item includes an \texttt{entityType} field that distinguishes between USER, CONFERENCE, PAPER, and REVIEW records, enabling polymorphic access patterns within a unified table. This single-table approach follows DynamoDB best practices by co-locating related entities to minimise the number of requests required for common operations \cite{awsdynamodb}. Items are keyed by their respective identifiers (userId, conferenceId, paperId, or reviewId), and a Global Secondary Index on the \texttt{entityType} field supports efficient retrieval of all items of a given type. DynamoDB was selected over relational alternatives because the primary access patterns involve retrieving individual entities by their identifier or querying items by entity type, both of which align efficiently with DynamoDB's key-value and secondary index query patterns. The PDF documents are stored in a dedicated S3 bucket with presigned URLs generated for secure, time-limited download access.
 
 % ============================================================
 % LIBRARY DESCRIPTION
@@ -135,7 +177,7 @@ status = review_mgr.determine_status(result)
 # Returns: "accepted"
 \end{lstlisting}
 
-The library includes 43 unit tests implemented with pytest, covering all four classes comprehensively. The test suite validates paper submission edge cases including empty fields and excessively long abstracts, review score boundary conditions, status transition validity for all possible state combinations, conference deadline enforcement, and formatter output correctness across all supported formats. The library is installed as a dependency in the Lambda deployment package and its test suite is executed as a mandatory gate in the CI/CD pipeline.
+The library includes 80 unit tests implemented with pytest, covering all four classes comprehensively. The test suite validates paper submission edge cases including empty fields and excessively long abstracts, review score boundary conditions, status transition validity for all possible state combinations, conference deadline enforcement, and formatter output correctness across all supported formats. The library is installed as a dependency in the Lambda deployment package and its test suite is executed as a mandatory gate in the CI/CD pipeline.
 
 % ============================================================
 % CLOUD SERVICES
@@ -150,7 +192,7 @@ AWS Lambda provides the serverless compute environment for the backend API, exec
 
 \subsection{Amazon DynamoDB}
 
-Amazon DynamoDB provides a fully managed NoSQL database for storing conference, paper, and user data across three dedicated tables \cite{awsdynamodb}. The tables use on-demand billing mode, which is ideal for conference systems where write volume spikes during submission windows and drops to near zero between conferences. DynamoDB was preferred over Amazon RDS because the application's access patterns are predominantly key-value lookups and single-table queries that do not require complex relational joins. The papers table employs a Global Secondary Index on the conferenceId attribute to enable efficient retrieval of all papers submitted to a specific conference without performing a full table scan.
+Amazon DynamoDB provides a fully managed NoSQL database for storing all application data in a single table called \texttt{confpapers-prod} \cite{awsdynamodb}. The table uses a single-table design pattern where each item includes an \texttt{entityType} attribute (USER, CONFERENCE, PAPER, or REVIEW) to distinguish between record types, enabling polymorphic data access within a unified table structure. This approach follows DynamoDB best practices by reducing the number of tables to manage and allowing related data to be co-located for efficient access. The table uses on-demand billing mode, which is ideal for conference systems where write volume spikes during submission windows and drops to near zero between conferences. DynamoDB was preferred over Amazon RDS because the application's access patterns are predominantly key-value lookups and single-table queries that do not require complex relational joins. A Global Secondary Index on the \texttt{entityType} attribute enables efficient retrieval of all items of a given type, such as listing all conferences or all papers.
 
 \subsection{Amazon API Gateway}
 
@@ -182,18 +224,18 @@ def notify_status_change(paper, new_status):
 
 \subsection{AWS IAM}
 
-AWS Identity and Access Management provides the security foundation for the serverless architecture by defining the Lambda function's execution role and its associated permission policies \cite{awsiam}. The IAM role grants the Lambda function precisely scoped permissions to read and write to the three DynamoDB tables, put and get objects in the S3 PDF bucket, publish messages to the SNS topic, and write logs to CloudWatch Logs. The principle of least privilege is followed by restricting each permission to the specific resource ARN rather than granting broad wildcard access. IAM was essential rather than optional because without properly configured execution roles, the Lambda function would be unable to interact with any other AWS service, making it the foundational security service upon which all other integrations depend.
+AWS Identity and Access Management provides the security foundation for the serverless architecture by defining the Lambda function's execution role and its associated permission policies \cite{awsiam}. The IAM role grants the Lambda function precisely scoped permissions to read and write to the DynamoDB table, put and get objects in the S3 PDF bucket, publish messages to the SNS topic, and write logs to CloudWatch Logs. The principle of least privilege is followed by restricting each permission to the specific resource ARN rather than granting broad wildcard access. IAM was essential rather than optional because without properly configured execution roles, the Lambda function would be unable to interact with any other AWS service, making it the foundational security service upon which all other integrations depend.
 
 % ============================================================
 % IMPLEMENTATION
 % ============================================================
 \section{Implementation}
 
-The implementation follows a clean separation between the frontend React application, the serverless Lambda backend with JWT-based authentication, and the custom Python library. This section documents the implementation of each major component.
+The implementation follows a clean separation between the frontend React application, the serverless Lambda backend with custom HMAC-based JWT authentication, and the custom Python library. This section documents the implementation of each major component.
 
 \subsection{Backend API and CRUD Operations}
 
-The Lambda function implements role-aware API routes through a path-based routing mechanism. All authenticated endpoints extract the JWT token from the Authorization header, decode it to obtain the user's role and identity, and enforce role-based access before processing the request. Table~\ref{tab:endpoints} summarises the primary API endpoints.
+The Lambda function implements role-aware API routes through a path-based routing mechanism. All authenticated endpoints extract the JWT token from the Authorization header, verify the HMAC signature, and enforce role-based access before processing the request. Table~\ref{tab:endpoints} summarises the primary API endpoints.
 
 \begin{table}[H]
 \centering
@@ -224,32 +266,46 @@ GET & /dashboard & Role-based dashboard \\
 \end{tabular}
 \end{table}
 
-A critical implementation detail involved the role-based access control enforcement within the JWT middleware. The system validates not only that the token is present and properly signed, but also that the decoded role matches the required role for each endpoint. The status transition validation leverages the confmanager-nci library to ensure that only valid workflow transitions are permitted:
+A critical implementation detail involved the custom HMAC-based JWT authentication, which was implemented without relying on the PyJWT library. The system constructs tokens manually by base64-encoding the header and payload segments, then signing them with HMAC-SHA256. Token verification recomputes the signature and uses a constant-time comparison to prevent timing attacks. The status transition validation leverages the confmanager-nci library to ensure that only valid workflow transitions are permitted:
 
-\begin{lstlisting}[language=Python, caption={JWT role validation and status transition}]
-import jwt
-from confmanager import PaperManager
+\begin{lstlisting}[language=Python, caption={Custom HMAC-based JWT and status transition}]
+import hmac, hashlib, base64, json, time
 
-def validate_role(token, required_role):
-    payload = jwt.decode(token, SECRET, algorithms=["HS256"])
-    if payload["role"] != required_role:
+JWT_SECRET = os.environ.get("JWT_SECRET",
+    "confpapers-secret-2026")
+
+def _b64_encode(data):
+    return base64.urlsafe_b64encode(
+        json.dumps(data).encode()
+    ).decode().rstrip("=")
+
+def generate_token(user_id, username, email, role):
+    header = {"alg": "HS256", "typ": "JWT"}
+    payload = {
+        "userId": user_id, "username": username,
+        "email": email, "role": role,
+        "exp": int(time.time()) + 86400,
+        "iat": int(time.time()),
+    }
+    segments = _b64_encode(header) + "." \
+        + _b64_encode(payload)
+    sig = hmac.new(JWT_SECRET.encode(),
+        segments.encode(), hashlib.sha256).digest()
+    return segments + "." + base64.urlsafe_b64encode(
+        sig).decode().rstrip("=")
+
+def decode_token(token):
+    parts = token.split(".")
+    if len(parts) != 3:
         return None
-    return payload
-
-def update_paper_status(paper_id, new_status, token):
-    user = validate_role(token, "admin")
-    if not user:
-        return {"statusCode": 403, "body": "Forbidden"}
-    paper = get_paper(paper_id)
-    mgr = PaperManager()
-    if not mgr.validate_transition(
-            paper["status"], new_status):
-        return {"statusCode": 400,
-                "body": "Invalid status transition"}
-    # Update status and notify via SNS
-    update_status_in_db(paper_id, new_status)
-    notify_status_change(paper, new_status)
-    return {"statusCode": 200, "body": "Status updated"}
+    segments = parts[0] + "." + parts[1]
+    expected = hmac.new(JWT_SECRET.encode(),
+        segments.encode(), hashlib.sha256).digest()
+    expected_b64 = base64.urlsafe_b64encode(
+        expected).decode().rstrip("=")
+    if not hmac.compare_digest(expected_b64, parts[2]):
+        return None
+    return _b64_decode(parts[1])
 \end{lstlisting}
 
 \subsection{Frontend Implementation}
@@ -260,7 +316,7 @@ The paper submission form includes a drag-and-drop PDF upload component that con
 
 \subsection{Testing}
 
-The confmanager-nci library includes 43 automated unit tests implemented with pytest. The tests validate paper submission with boundary conditions on title length and abstract word count, review score validation at boundary values of one and ten, all permitted and prohibited status transitions in the paper workflow state machine, conference deadline enforcement including edge cases at exact deadline times, and formatter output consistency across all supported formats. The CI/CD pipeline executes this test suite as a mandatory gate before deployment proceeds.
+The confmanager-nci library includes 80 automated unit tests implemented with pytest, distributed across five test modules covering the four primary classes. The tests validate paper submission with boundary conditions on title length and abstract word count, review score validation at boundary values of one and ten, all permitted and prohibited status transitions in the paper workflow state machine, conference deadline enforcement including edge cases at exact deadline times, reviewer assignment with conflict-of-interest avoidance, acceptance rate calculations, and formatter output consistency across all supported formats including CSV export, acceptance letters, and rejection letters. The CI/CD pipeline executes this test suite as a mandatory gate before deployment proceeds.
 
 % ============================================================
 % CI/CD AND DEPLOYMENT
@@ -269,13 +325,29 @@ The confmanager-nci library includes 43 automated unit tests implemented with py
 
 The application source code is maintained in a GitHub repository at \url{https://github.com/srinidhivutkoori/cpp}. A comprehensive CI/CD pipeline was implemented using GitHub Actions, triggered automatically on every push to the main branch. The pipeline consists of three sequential jobs that collectively automate testing, infrastructure provisioning, and application deployment.
 
-The first job, \texttt{test-library}, installs the confmanager-nci library in editable mode and executes the full pytest suite of 43 unit tests. Only when all tests pass does the pipeline proceed to backend deployment.
+The first job, \texttt{test-library}, installs the confmanager-nci library in editable mode and executes the full pytest suite of 80 unit tests. Only when all tests pass does the pipeline proceed to backend deployment.
 
-The second job, \texttt{deploy-backend}, provisions all required AWS infrastructure using the AWS CLI. This includes creating three DynamoDB tables (conferences, papers, users) with on-demand billing and appropriate key schemas, creating S3 buckets with CORS configurations for PDF storage and frontend hosting, creating an IAM role with policies scoped to the specific DynamoDB tables, S3 buckets, SNS topic, and CloudWatch log groups, creating an SNS topic for status change notifications, packaging the Lambda function code with all dependencies including the confmanager-nci library and the PyJWT package, and configuring API Gateway with proxy integration. All resource creation commands are idempotent, using existence checks to handle repeated deployments safely.
+The second job, \texttt{deploy-backend}, provisions all required AWS infrastructure using the AWS CLI. This includes creating the DynamoDB table (\texttt{confpapers-prod}) with on-demand billing and appropriate key schema supporting the single-table design, creating S3 buckets with CORS configurations for PDF storage and frontend hosting, creating an IAM role with policies scoped to the specific DynamoDB table, S3 buckets, SNS topic, and CloudWatch log groups, creating an SNS topic for status change notifications, packaging the Lambda function code with all dependencies including the confmanager-nci library, and configuring API Gateway with proxy integration. All resource creation commands are idempotent, using existence checks to handle repeated deployments safely.
 
 The third job, \texttt{deploy-frontend}, retrieves the API Gateway URL from the deployed backend, builds the React application with the API URL injected as an environment variable, and synchronises the compiled assets to the frontend S3 bucket with appropriate cache control headers.
 
 The pipeline requires AWS\_ACCESS\_KEY\_ID and AWS\_SECRET\_ACCESS\_KEY as GitHub repository secrets. All other configuration values including resource ARNs and API URLs are derived dynamically during pipeline execution, ensuring the deployment is fully reproducible from a clean AWS account.
+
+The deployed application is accessible at the following URLs:
+
+\begin{itemize}
+    \item \textbf{Frontend:} \url{http://confpapers-frontend-prod-srinidhi.s3-website-eu-west-1.amazonaws.com}
+    \item \textbf{PyPI Package:} \url{https://pypi.org/project/confmanager-nci/1.0.0/}
+    \item \textbf{GitHub Repository:} \url{https://github.com/srinidhivutkoori/cpp}
+\end{itemize}
+
+Demo credentials are pre-seeded for evaluation purposes:
+
+\begin{itemize}
+    \item \textbf{Admin:} admin@paperhub.demo / Admin1234!
+    \item \textbf{Reviewer:} reviewer@paperhub.demo / Review1234!
+    \item \textbf{Author:} author@paperhub.demo / Author1234!
+\end{itemize}
 
 % ============================================================
 % CONCLUSIONS
@@ -284,11 +356,11 @@ The pipeline requires AWS\_ACCESS\_KEY\_ID and AWS\_SECRET\_ACCESS\_KEY as GitHu
 
 This project successfully demonstrates the development and deployment of a serverless cloud-native application that integrates six AWS services to deliver a comprehensive academic conference paper submission and peer review management platform. PaperHub provides role-based access for authors, reviewers, and administrators, structured peer review with score aggregation, enforced status workflow transitions, and automated email notifications, all without requiring any server infrastructure management.
 
-Several key findings emerged during the development process. First, implementing role-based access control through JWT claims proved effective for a serverless architecture where traditional session-based authentication is impractical. By encoding the user's role directly in the token, the Lambda function can make authorisation decisions without additional database lookups on every request. However, this approach requires careful token expiration management and would benefit from refresh token rotation for production deployments.
+Several key findings emerged during the development process. First, implementing role-based access control through custom HMAC-based JWT tokens proved effective for a serverless architecture where traditional session-based authentication is impractical. By constructing tokens manually with HMAC-SHA256 signatures and encoding the user's role directly in the payload, the Lambda function can make authorisation decisions without additional database lookups or third-party dependencies on every request. The use of constant-time comparison via \texttt{hmac.compare\_digest} also provides protection against timing-based attacks on token verification.
 
 Second, the status transition validation implemented through the confmanager-nci library proved essential for maintaining data integrity in the paper workflow. Without programmatic enforcement of the state machine, it would be possible for papers to reach invalid states through concurrent API calls or client-side manipulation. The library's transition validation serves as a critical guard that operates independently of the frontend, ensuring consistency regardless of how the API is invoked.
 
-Third, DynamoDB's Global Secondary Index on the papers table proved valuable for the common query pattern of retrieving all papers for a specific conference. Without this index, each conference view would require a full table scan, which would become increasingly expensive as the number of submitted papers grows across multiple conferences.
+Third, the single-table DynamoDB design using an \texttt{entityType} discriminator field proved effective for modelling the polymorphic data requirements of the conference management domain. By co-locating USER, CONFERENCE, PAPER, and REVIEW entities within a single table, the application minimises the number of DynamoDB tables to provision and manage, while the Global Secondary Index on \texttt{entityType} supports efficient retrieval of homogeneous collections when needed.
 
 The main limitations of the current implementation include the absence of reviewer assignment automation, which currently requires manual allocation by administrators. A future enhancement could integrate an algorithm that matches reviewers to papers based on keyword similarity between reviewer expertise profiles and paper abstracts. Additionally, the current PDF storage does not include plagiarism detection or format validation, which would be valuable additions for a production conference management system. The serverless architecture provides a solid foundation for these extensions, as additional Lambda functions and services such as Amazon Textract for document analysis could be integrated incrementally.
 

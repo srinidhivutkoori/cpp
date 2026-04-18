@@ -191,6 +191,69 @@ def delete_review(review_id):
         return jsonify({'error': str(e)}), 500
 
 
+@review_bp.route('/api/papers/<int:paper_id>/reviews', methods=['GET'])
+def get_paper_reviews(paper_id):
+    """
+    Retrieve all reviews for a specific paper.
+
+    Args:
+        paper_id (int): Paper primary key.
+
+    Returns:
+        JSON array of review objects with 200 status.
+    """
+    try:
+        reviews = Review.query.filter_by(paper_id=paper_id).order_by(Review.assigned_at.desc()).all()
+        return jsonify([r.to_dict() for r in reviews]), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@review_bp.route('/api/papers/<int:paper_id>/reviews', methods=['POST'])
+def create_paper_review(paper_id):
+    """
+    Submit a review for a specific paper.
+    Accepts the simplified review form from the frontend (score, recommendation, comments)
+    and maps it to the full review model.
+
+    Args:
+        paper_id (int): Paper primary key.
+
+    Returns:
+        JSON review object with 201 status on success.
+    """
+    try:
+        data = request.get_json()
+
+        # Build reviewer info from auth context or request data
+        reviewer_name = data.get('reviewer_name', 'Anonymous Reviewer')
+        reviewer_email = data.get('reviewer_email', 'reviewer@paperhub.com')
+
+        review = Review(
+            reviewer_name=reviewer_name,
+            reviewer_email=reviewer_email,
+            paper_id=paper_id,
+            overall_score=data.get('score'),
+            originality_score=data.get('score'),
+            significance_score=data.get('score'),
+            clarity_score=data.get('score'),
+            methodology_score=data.get('score'),
+            recommendation=data.get('recommendation', ''),
+            detailed_comments=data.get('comments', ''),
+            summary_comment=data.get('comments', ''),
+            status='completed',
+            completed_at=datetime.utcnow()
+        )
+
+        db.session.add(review)
+        db.session.commit()
+
+        return jsonify(review.to_dict()), 201
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
 @review_bp.route('/api/papers/<int:paper_id>/reviews/aggregate', methods=['GET'])
 def aggregate_reviews(paper_id):
     """
