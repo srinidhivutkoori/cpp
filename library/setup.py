@@ -3,7 +3,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="confmanager-nci",
+    name="confpapers-nci",
     version="1.0.0",
     author="Srinidhi Vutkoori",
     author_email="srinidhi.vutkoori@example.com",
