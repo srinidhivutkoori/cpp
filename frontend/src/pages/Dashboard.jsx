@@ -84,7 +84,7 @@ export default function Dashboard() {
       setSubEmail('');
       loadSubCount();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Subscription failed');
+      toast.error(err.response?.data?.error || 'Subscription failed');
     } finally {
       setSubLoading(false);
     }
@@ -104,9 +104,37 @@ export default function Dashboard() {
     );
   }
 
-  const papers = data?.papers || [];
-  const reviews = data?.reviews || [];
-  const stats = data?.stats || {};
+  // Map Lambda response fields to what the UI expects
+  const role = data?.role || user?.role;
+  let papers = [];
+  let stats = {};
+
+  if (role === 'author') {
+    papers = data?.myPapers || [];
+    stats = {
+      total: data?.submittedCount || 0,
+      accepted: data?.acceptedCount || 0,
+      pending: data?.pendingCount || 0,
+      rejected: papers.filter(p => p.status === 'rejected').length,
+    };
+  } else if (role === 'reviewer') {
+    papers = data?.assignedPapers || [];
+    stats = {
+      assigned: papers.length,
+      completed: data?.completedReviews || 0,
+      pending: data?.pendingReviews || 0,
+    };
+  } else if (role === 'admin') {
+    papers = data?.recentSubmissions || [];
+    const byStatus = data?.byStatus || {};
+    stats = {
+      total: data?.totalPapers || 0,
+      acceptance_rate: data?.acceptanceRate || 0,
+      users: data?.totalReviewers || 0,
+      conferences: 0,
+      ...byStatus,
+    };
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -208,7 +236,8 @@ export default function Dashboard() {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Papers by Status</h3>
               <div className="space-y-3">
                 {Object.entries(statusConfig).map(([key, cfg]) => {
-                  const count = stats[`status_${key}`] || stats[key] || 0;
+                  const byStatus = data?.byStatus || {};
+                  const count = byStatus[key] || stats[`status_${key}`] || stats[key] || 0;
                   const total = stats.total || 1;
                   const pct = Math.round((count / total) * 100);
                   return (
@@ -244,7 +273,7 @@ export default function Dashboard() {
                     <Link key={p.id || p._id} to={`/papers/${p.id || p._id}`} className="flex items-center justify-between px-6 py-3 hover:bg-gray-50 transition-colors">
                       <div className="min-w-0 flex-1">
                         <p className="text-sm font-medium text-gray-900 truncate">{p.title}</p>
-                        <p className="text-xs text-gray-500 mt-0.5">{p.submitted_at || p.created_at || ''}</p>
+                        <p className="text-xs text-gray-500 mt-0.5">{p.createdAt || ''}</p>
                       </div>
                       <StatusBadge status={p.status} />
                     </Link>

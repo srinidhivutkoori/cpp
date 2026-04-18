@@ -13,7 +13,7 @@ export default function SubmitPaper() {
   const [form, setForm] = useState({
     title: '',
     abstract: '',
-    conference_id: '',
+    conferenceId: '',
   });
   const [authors, setAuthors] = useState(['']);
   const [keywords, setKeywords] = useState(['']);
@@ -68,19 +68,28 @@ export default function SubmitPaper() {
 
     setLoading(true);
     try {
-      const formData = new FormData();
-      formData.append('title', form.title);
-      formData.append('abstract', form.abstract);
-      if (form.conference_id) formData.append('conference_id', form.conference_id);
-      filteredAuthors.forEach((a) => formData.append('authors', a));
-      keywords.filter((k) => k.trim()).forEach((k) => formData.append('keywords', k.trim()));
-      if (file) formData.append('file', file);
+      const payload = {
+        title: form.title,
+        abstract: form.abstract,
+        conferenceId: form.conferenceId,
+        authors: filteredAuthors,
+        keywords: keywords.filter((k) => k.trim()).map((k) => k.trim()),
+      };
 
-      await submitPaper(formData);
+      if (file) {
+        const reader = new FileReader();
+        const base64 = await new Promise((resolve) => {
+          reader.onload = () => resolve(reader.result.split(',')[1]);
+          reader.readAsDataURL(file);
+        });
+        payload.pdfBase64 = base64;
+      }
+
+      await submitPaper(payload);
       toast.success('Paper submitted successfully!');
       navigate('/papers');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Submission failed');
+      toast.error(err.response?.data?.error || 'Submission failed');
     } finally {
       setLoading(false);
     }
@@ -187,8 +196,8 @@ export default function SubmitPaper() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Conference</label>
             <select
-              value={form.conference_id}
-              onChange={(e) => setForm({ ...form, conference_id: e.target.value })}
+              value={form.conferenceId}
+              onChange={(e) => setForm({ ...form, conferenceId: e.target.value })}
               className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
             >
               <option value="">Select a conference (optional)</option>

@@ -28,35 +28,35 @@ API.interceptors.response.use(
 
 // Auth
 export const register = (username, email, password, role) =>
-  API.post('/api/auth/register', { username, email, password, role });
+  API.post('/auth/register', { username, email, password, role });
 
 export const login = (email, password) =>
-  API.post('/api/auth/login', { email, password });
+  API.post('/auth/login', { email, password });
 
 // Conferences
-export const getConferences = () => API.get('/api/conferences');
-export const createConference = (data) => API.post('/api/conferences', data);
-export const getConference = (id) => API.get(`/api/conferences/${id}`);
+export const getConferences = () => API.get('/conferences');
+export const createConference = (data) => API.post('/conferences', data);
+export const getConference = (id) => API.get(`/conferences/${id}`);
 
 // Papers
-export const getPapers = (params) => API.get('/api/papers', { params });
-export const submitPaper = (data) => API.post('/api/papers', data);
-export const getPaper = (id) => API.get(`/api/papers/${id}`);
-export const updatePaper = (id, data) => API.put(`/api/papers/${id}`, data);
-export const deletePaper = (id) => API.delete(`/api/papers/${id}`);
+export const getPapers = (params) => API.get('/papers', { params });
+export const submitPaper = (data) => API.post('/papers', data);
+export const getPaper = (id) => API.get(`/papers/${id}`);
+export const updatePaper = (id, data) => API.put(`/papers/${id}`, data);
+export const deletePaper = (id) => API.delete(`/papers/${id}`);
 export const updatePaperStatus = (id, status) =>
-  API.put(`/api/papers/${id}/status`, { status });
+  API.put(`/papers/${id}/status`, { status });
 
 // Reviews
-export const getReviews = (paperId) => API.get(`/api/papers/${paperId}/reviews`);
+export const getReviews = (paperId) => API.get(`/papers/${paperId}/reviews`);
 export const submitReview = (paperId, data) =>
-  API.post(`/api/papers/${paperId}/reviews`, data);
+  API.post(`/papers/${paperId}/reviews`, data);
 
 // Dashboard
-export const getDashboard = () => API.get('/api/dashboard');
+export const getDashboard = () => API.get('/dashboard');
 
 // Subscriptions
-export const subscribe = (email) => API.post('/api/subscribe', { email });
-export const getSubscriberCount = () => API.get('/api/subscribers');
+export const subscribe = (email) => API.post('/subscribe', { email });
+export const getSubscriberCount = () => API.get('/subscribers');
 
 export default API;

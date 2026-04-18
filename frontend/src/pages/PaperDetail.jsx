@@ -64,8 +64,13 @@ export default function PaperDetail() {
   const loadPaper = async () => {
     try {
       const res = await getPaper(id);
-      setPaper(res.data.paper || res.data);
-      setNewStatus((res.data.paper || res.data).status || '');
+      const p = res.data.paper || res.data;
+      setPaper(p);
+      setNewStatus(p.status || '');
+      // getPaper includes reviews inline
+      if (p.reviews) {
+        setReviews(p.reviews);
+      }
     } catch {
       toast.error('Failed to load paper');
       navigate('/papers');
@@ -98,7 +103,7 @@ export default function PaperDetail() {
       loadReviews();
       loadPaper();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to submit review');
+      toast.error(err.response?.data?.error || 'Failed to submit review');
     } finally {
       setReviewLoading(false);
     }
@@ -112,7 +117,7 @@ export default function PaperDetail() {
       toast.success('Status updated!');
       loadPaper();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to update status');
+      toast.error(err.response?.data?.error || 'Failed to update status');
     } finally {
       setStatusLoading(false);
     }
@@ -126,7 +131,7 @@ export default function PaperDetail() {
       toast.success('Paper withdrawn');
       navigate('/papers');
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to delete paper');
+      toast.error(err.response?.data?.error || 'Failed to withdraw paper');
     } finally {
       setDeleteLoading(false);
     }
@@ -175,16 +180,16 @@ export default function PaperDetail() {
             <User className="w-4 h-4" />
             <span>{Array.isArray(paper.authors) ? paper.authors.join(', ') : paper.authors || 'Unknown'}</span>
           </div>
-          {paper.conference_name && (
+          {paper.conferenceId && (
             <div className="flex items-center gap-1.5">
               <Building2 className="w-4 h-4" />
-              <span>{paper.conference_name}</span>
+              <span>Conference: {paper.conferenceId}</span>
             </div>
           )}
-          {(paper.submitted_at || paper.created_at) && (
+          {paper.createdAt && (
             <div className="flex items-center gap-1.5">
               <Calendar className="w-4 h-4" />
-              <span>{new Date(paper.submitted_at || paper.created_at).toLocaleDateString()}</span>
+              <span>{new Date(paper.createdAt).toLocaleDateString()}</span>
             </div>
           )}
         </div>
@@ -208,9 +213,9 @@ export default function PaperDetail() {
         </div>
 
         {/* PDF download */}
-        {paper.file_url && (
+        {paper.pdfUrl && (
           <a
-            href={paper.file_url}
+            href={paper.pdfUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg text-sm font-medium hover:bg-blue-100 transition-colors"
@@ -304,7 +309,7 @@ export default function PaperDetail() {
                         <User className="w-4 h-4 text-gray-500" />
                       </div>
                       <div>
-                        <p className="text-sm font-medium text-gray-900">{review.reviewer_name || review.reviewer || 'Reviewer'}</p>
+                        <p className="text-sm font-medium text-gray-900">{review.reviewerName || review.reviewer_name || 'Reviewer'}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
@@ -356,8 +361,6 @@ export default function PaperDetail() {
                   className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
                 >
                   <option value="accept">Accept</option>
-                  <option value="minor_revision">Minor Revision</option>
-                  <option value="major_revision">Major Revision</option>
                   <option value="revision">Revision Required</option>
                   <option value="reject">Reject</option>
                 </select>
