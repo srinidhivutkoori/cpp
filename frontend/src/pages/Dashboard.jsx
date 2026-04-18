@@ -30,6 +30,8 @@ const statusConfig = {
   accepted: { color: 'bg-green-100 text-green-700', label: 'Accepted' },
   rejected: { color: 'bg-red-100 text-red-700', label: 'Rejected' },
   revision_required: { color: 'bg-purple-100 text-purple-700', label: 'Revision Required' },
+  withdrawn: { color: 'bg-gray-100 text-gray-700', label: 'Withdrawn' },
+  published: { color: 'bg-emerald-100 text-emerald-700', label: 'Published' },
 };
 
 function StatusBadge({ status }) {
@@ -131,8 +133,7 @@ export default function Dashboard() {
       total: data?.totalPapers || 0,
       acceptance_rate: data?.acceptanceRate || 0,
       users: data?.totalReviewers || 0,
-      conferences: 0,
-      ...byStatus,
+      conferences: data?.totalConferences || 0,
     };
   }
 
@@ -175,7 +176,7 @@ export default function Dashboard() {
                   <Link key={p.id || p._id} to={`/papers/${p.id || p._id}`} className="flex items-center justify-between px-6 py-4 hover:bg-gray-50 transition-colors">
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-medium text-gray-900 truncate">{p.title}</p>
-                      <p className="text-xs text-gray-500 mt-0.5">{p.conference_name || 'No conference'}</p>
+                      <p className="text-xs text-gray-500 mt-0.5">{new Date(p.createdAt).toLocaleDateString()}</p>
                     </div>
                     <StatusBadge status={p.status} />
                   </Link>

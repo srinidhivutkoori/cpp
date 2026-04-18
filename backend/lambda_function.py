@@ -585,6 +585,11 @@ def handle_dashboard(user):
             ExpressionAttributeValues={":et": "USER", ":rv": "reviewer"},
         )
         total_reviewers = len(reviewers_res.get("Items", []))
+        conf_res = table.scan(
+            FilterExpression="entityType = :et",
+            ExpressionAttributeValues={":et": "CONFERENCE"},
+        )
+        total_conferences = len(conf_res.get("Items", []))
         total = len(papers)
         accepted = sum(1 for p in papers if p.get("status") == "accepted")
         rate = round((accepted / total * 100), 1) if total > 0 else 0
@@ -599,6 +604,7 @@ def handle_dashboard(user):
             "role": "admin",
             "totalPapers": total,
             "totalReviewers": total_reviewers,
+            "totalConferences": total_conferences,
             "acceptanceRate": rate,
             "byStatus": by_status,
             "recentSubmissions": recent,

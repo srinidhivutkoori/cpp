@@ -16,6 +16,18 @@ const statusConfig = {
   accepted: { color: 'bg-green-100 text-green-700', label: 'Accepted' },
   rejected: { color: 'bg-red-100 text-red-700', label: 'Rejected' },
   revision_required: { color: 'bg-purple-100 text-purple-700', label: 'Revision Required' },
+  withdrawn: { color: 'bg-gray-100 text-gray-700', label: 'Withdrawn' },
+  published: { color: 'bg-emerald-100 text-emerald-700', label: 'Published' },
+};
+
+const statusLabels = {
+  submitted: 'Submitted',
+  under_review: 'Under Review',
+  accepted: 'Accepted',
+  rejected: 'Rejected',
+  revision_required: 'Revision Required',
+  withdrawn: 'Withdrawn',
+  published: 'Published',
 };
 
 const recommendationConfig = {
@@ -58,7 +70,6 @@ export default function PaperDetail() {
 
   useEffect(() => {
     loadPaper();
-    loadReviews();
   }, [id]);
 
   const loadPaper = async () => {
@@ -66,7 +77,7 @@ export default function PaperDetail() {
       const res = await getPaper(id);
       const p = res.data.paper || res.data;
       setPaper(p);
-      setNewStatus(p.status || '');
+      setNewStatus('');
       // getPaper includes reviews inline
       if (p.reviews) {
         setReviews(p.reviews);
@@ -156,6 +167,17 @@ export default function PaperDetail() {
   const isAuthor = user?.role === 'author';
   const isReviewer = user?.role === 'reviewer';
   const isAdmin = user?.role === 'admin';
+
+  const validTransitions = {
+    submitted: ['under_review', 'withdrawn'],
+    under_review: ['accepted', 'rejected', 'revision_required'],
+    revision_required: ['submitted', 'withdrawn'],
+    accepted: ['published'],
+    rejected: [],
+    withdrawn: [],
+    published: [],
+  };
+  const allowedStatuses = validTransitions[paper?.status] || [];
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -249,7 +271,7 @@ export default function PaperDetail() {
         )}
 
         {/* Admin status update */}
-        {isAdmin && (
+        {isAdmin && allowedStatuses.length > 0 && (
           <div className="mt-6 pt-6 border-t border-gray-200">
             <h3 className="text-sm font-semibold text-gray-700 mb-3">Update Status</h3>
             <div className="flex items-center gap-3">
@@ -258,15 +280,14 @@ export default function PaperDetail() {
                 onChange={(e) => setNewStatus(e.target.value)}
                 className="px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white"
               >
-                <option value="submitted">Submitted</option>
-                <option value="under_review">Under Review</option>
-                <option value="accepted">Accepted</option>
-                <option value="rejected">Rejected</option>
-                <option value="revision_required">Revision Required</option>
+                <option value="">Select new status</option>
+                {allowedStatuses.map((s) => (
+                  <option key={s} value={s}>{statusLabels[s] || s}</option>
+                ))}
               </select>
               <button
                 onClick={handleStatusUpdate}
-                disabled={statusLoading}
+                disabled={statusLoading || !newStatus}
                 className="flex items-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
               >
                 {statusLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}

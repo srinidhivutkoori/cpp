@@ -10,6 +10,8 @@ const statusConfig = {
   accepted: { color: 'bg-green-100 text-green-700', label: 'Accepted' },
   rejected: { color: 'bg-red-100 text-red-700', label: 'Rejected' },
   revision_required: { color: 'bg-purple-100 text-purple-700', label: 'Revision Required' },
+  withdrawn: { color: 'bg-gray-100 text-gray-700', label: 'Withdrawn' },
+  published: { color: 'bg-emerald-100 text-emerald-700', label: 'Published' },
 };
 
 function StatusBadge({ status }) {
